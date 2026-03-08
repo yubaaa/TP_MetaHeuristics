@@ -15,7 +15,7 @@ function App() {
   const [worst, setWorst] = useState(null);
   const [loading, setLoading] = useState(false);
   const [size, setSize] = useState(30);
-  const [csvData, setCsvData] = useState([]); // { rows: string[][], fileName: string }
+  const [csvData, setCsvData] = useState([]); 
   const [csvFileName, setCsvFileName] = useState("");
 
    // ── Multiple Runs state ──
@@ -25,7 +25,7 @@ function App() {
   const [c2, setC2] = useState(1.5);
   const [runsLoading, setRunsLoading] = useState(false);
   const [iterLoading, setIterLoading] = useState(false);
-  const [runsResult, setRunsResult] = useState(null); // { best, worst, mean, std, image_url }
+  const [runsResult, setRunsResult] = useState(null); 
   const [iterResult, setIterResult] = useState(null); 
   const API = "http://127.0.0.1:5000";
 
@@ -81,13 +81,13 @@ function App() {
 
     Papa.parse(file, {
       complete: (result) => {
-        // Filter out empty rows
+       
         const rows = result.data.filter((row) =>
           row.some((cell) => cell !== "")
         );
         setCsvData(rows);
 
-        // Also populate the vector textarea with the first row
+        
         const values = [];
         rows.forEach((row) => {
           row.forEach((cell) => {
@@ -155,7 +155,7 @@ const evaluateVectors = async () => {
   }
 };
 
- // ── Multiple Runs handler ──
+
   const evaluateMultipleRuns = async () => {
     try {
       setRunsLoading(true);
@@ -202,8 +202,8 @@ setIterResult({
   avg_curve: data.avg_curve,
   trajectory: data.trajectory,
   stagnation_iter: data.stagnation_iter,
-  // ── Add the new stats fields ──
-  stats: data.stats,  // contains: best, worst, mean, std, all_best_fits, num_runs
+ 
+  stats: data.stats,  
 });
 
   } catch (error) {
@@ -219,7 +219,7 @@ const evaluateMultipleIter = async () => {
       function: selectedFunction,
       numIter: numIter,
       size: size,
-      dimension: 2,   // 🔥 adapte si besoin
+      dimension: 2,   
       c1: c1,
       c2: c2
     });
@@ -229,7 +229,7 @@ const evaluateMultipleIter = async () => {
     setIterResult({
       best: data.best_fitness,
       worst: Math.max(...data.convergence_curve),
-      image_url: null   // si tu ajoutes une image plus tard
+      image_url: null  
     });
 
   } catch (error) {
@@ -333,7 +333,7 @@ const evaluateMultipleIter = async () => {
         {worst !== null && (
           <div className="result-box">worst: {worst}</div>
         )}
-      {/* CSV Table Display */}
+      
       {csvData.length > 0 && (
         <div className="csv-card">
           <div className="csv-header">
@@ -465,7 +465,7 @@ const evaluateMultipleIter = async () => {
       </div>
 
      {/* ===================== */}
-      {/* META HEURISTICS SECTION */}
+      {/* META HEURISTICS SECTION PSO */}
       {/* ===================== */}
      <div className="card runs-card">
         <h2 className="section-title">🔁 Running WITH PSO</h2>
