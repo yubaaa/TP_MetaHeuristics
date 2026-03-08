@@ -94,25 +94,21 @@ def save_plots(
     stagnation_iter=None,
     snap_first=None,
 ):
-
     import numpy as np
     import matplotlib.pyplot as plt
 
     # ==============================
     # 1️ Convergence curve
     # ==============================
-
     plt.figure()
     plt.plot(curve, color="red", linewidth=2)
     plt.xlabel("Iteration")
     plt.ylabel("Best fitness")
     plt.title(f"{prefix} Convergence")
     plt.grid(True)
-
     if stagnation_iter is not None:
         plt.axvline(stagnation_iter, color="gray", linestyle="--", label="Stagnation")
         plt.legend()
-
     plt.tight_layout()
     plt.savefig("static/convergence.png", dpi=120)
     plt.close()
@@ -120,19 +116,15 @@ def save_plots(
     # ==============================
     # 2️ Average fitness
     # ==============================
-
     if avg_curve is not None:
-
         plt.figure()
         plt.plot(avg_curve, color="blue", linewidth=2)
         plt.xlabel("Iteration")
         plt.ylabel("Average fitness")
         plt.title("Average Fitness")
         plt.grid(True)
-
         if stagnation_iter is not None:
             plt.axvline(stagnation_iter, color="gray", linestyle="--")
-
         plt.tight_layout()
         plt.savefig("static/avg_fitness.png", dpi=120)
         plt.close()
@@ -140,128 +132,119 @@ def save_plots(
     # ==============================
     # 3️ Trajectory
     # ==============================
-
     if trajectory is not None:
-
         traj = np.array(trajectory)
-
         plt.figure()
-
         if traj.ndim == 2 and traj.shape[1] >= 2:
             plt.plot(traj[:, 0], label="x1")
             plt.plot(traj[:, 1], label="x2")
             plt.legend()
         else:
             plt.plot(traj)
-
         plt.xlabel("Iteration")
         plt.ylabel("Position")
         plt.title("Trajectory of first solution")
         plt.grid(True)
-
         if stagnation_iter is not None:
             plt.axvline(stagnation_iter, color="gray", linestyle="--")
-
         plt.tight_layout()
         plt.savefig("static/trajectory.png", dpi=120)
         plt.close()
 
     # ==============================
-    # 4 Search history (Contour)
+    # 4️ Search history (Zoomed Contour)
     # ==============================
-
     if D < 2:
         return
 
-    # grid pour contour
-    resolution = 140
-    x_range = np.linspace(lb, ub, resolution)
-    y_range = np.linspace(lb, ub, resolution)
-
-    X, Y = np.meshgrid(x_range, y_range)
-
-    Z = np.zeros_like(X)
-
-    for i in range(resolution):
-        for j in range(resolution):
-
-            point = [X[i, j], Y[i, j]]
-
-            if D > 2:
-                point += [0] * (D - 2)
-
-            Z[i, j] = func(point)
-
-    # ==============================
-    # récupérer toutes les positions explorées
-    # ==============================
-
-    all_points = []
-
-    for iteration in all_positions:
-        for p in iteration:
-            all_points.append(p)
-
-    all_points = np.array(all_points)
-
-    # ==============================
-    # Best position history
-    # ==============================
-
+    # Fusion de toutes les positions pour calculer les limites du zoom
+    all_points = np.vstack(all_positions)
     hx = [p[0] for p in history]
     hy = [p[1] for p in history]
 
-    # ==============================
-    # Plot
-    # ==============================
+    # --- CALCUL DU ZOOM ---
+    # On définit les limites basées sur les points explorés + une marge de 10%
+    x_min, x_max = all_points[:, 0].min(), all_points[:, 0].max()
+    y_min, y_max = all_points[:, 1].min(), all_points[:, 1].max()
 
-    plt.figure(figsize=(7, 7))
+    pad_x = (x_max - x_min) * 0.1 if x_max != x_min else 1.0
+    pad_y = (y_max - y_min) * 0.1 if y_max != y_min else 1.0
 
-    # contour surface
-    plt.contourf(X, Y, Z, levels=40, cmap="YlGn", alpha=0.8)
-    plt.contour(X, Y, Z, levels=40, colors="gray", linewidths=0.4)
+    view_x = [max(lb, x_min - pad_x), min(ub, x_max + pad_x)]
+    view_y = [max(lb, y_min - pad_y), min(ub, y_max + pad_y)]
 
-    if len(all_points) > 0:
-        plt.scatter(
-            all_points[:, 0],
-            all_points[:, 1],
-            color="black",
-            s=6,
-            alpha=0.4,
-            label="Population search",
-        )
+    # Génération du contour sur la zone ZOOMÉE
+    resolution = 150
+    x_range = np.linspace(view_x[0], view_x[1], resolution)
+    y_range = np.linspace(view_y[0], view_y[1], resolution)
+    X, Y = np.meshgrid(x_range, y_range)
 
-    plt.scatter(hx, hy, color="orange", s=40, label="Best per iteration")
+    # Calcul de la fitness sur la grille
+    Z = np.zeros_like(X)
+    for i in range(resolution):
+        for j in range(resolution):
+            point = [X[i, j], Y[i, j]]
+            if D > 2:
+                point += [0] * (D - 2)
+            Z[i, j] = func(point)
 
-    plt.plot(hx, hy, color="orange", linewidth=1.5)
+    # --- PLOT ---
+    plt.figure(figsize=(8, 8))
 
-    plt.scatter(gbest[0], gbest[1], color="red", s=200, marker="*", label="Global best")
+    # Fond : Contour rempli fluide
+    cp = plt.contourf(X, Y, Z, levels=50, cmap="YlGnBu", alpha=0.7)
+    plt.colorbar(cp, label="Fitness Value")
+    plt.contour(X, Y, Z, levels=20, colors="black", linewidths=0.1, alpha=0.5)
 
+    # Population : petits points noirs
+    plt.scatter(
+        all_points[:, 0],
+        all_points[:, 1],
+        color="black",
+        s=3,
+        alpha=0.2,
+        label="Population search",
+    )
+
+    # Historique du Best : ligne orange
+    plt.plot(hx, hy, color="orange", linewidth=1, alpha=0.8, zorder=3)
+    plt.scatter(hx, hy, color="orange", s=15, label="Iter. Best", zorder=3)
+
+    # Global Best : Grosse étoile rouge
+    plt.scatter(
+        gbest[0],
+        gbest[1],
+        color="red",
+        s=250,
+        marker="*",
+        edgecolors="white",
+        label="Global best",
+        zorder=5,
+    )
+
+    # Marqueur de stagnation
     if stagnation_iter is not None and stagnation_iter < len(hx):
-
         plt.scatter(
             hx[stagnation_iter],
             hy[stagnation_iter],
-            color="purple",
-            s=160,
-            marker="D",
-            label="Stagnation",
+            color="magenta",
+            s=150,
+            marker="X",
+            edgecolors="black",
+            label="Stagnation point",
+            zorder=4,
         )
 
-    plt.xlim(lb, ub)
-    plt.ylim(lb, ub)
-
+    plt.xlim(view_x[0], view_x[1])
+    plt.ylim(view_y[0], view_y[1])
     plt.xlabel("x1")
     plt.ylabel("x2")
-
-    plt.title(f"Search History ({prefix})")
-
-    plt.legend()
-
+    plt.title(f"Search History Zoomed ({prefix})")
+    plt.legend(loc="upper right", fontsize="small")
     plt.tight_layout()
 
+    # DPI=200 pour une netteté maximale au frontend
     plt.savefig("static/search_history_contour.png", dpi=200)
-
     plt.close()
 
 
@@ -428,72 +411,66 @@ def _pso_single_run(func, D, lb, ub, T, N, w, c1, c2):
     P = np.random.uniform(lb, ub, (N, D))
     V = np.zeros((N, D))
     fitness = np.array([func(P[i]) for i in range(N)])
+
     best_idx = np.argmin(fitness)
     x_star = P[best_idx].copy()
     x_star_fit = fitness[best_idx]
+
     pbest = P.copy()
     pbest_fit = fitness.copy()
-    snap_first = P.copy()
+
     first_position = x_star.copy()
+    snap_first = P.copy()
+
     curve = [float(x_star_fit)]
     avg_curve = [float(np.mean(fitness))]
     all_positions = [P.copy()]
     history = [(float(x_star[0]), float(x_star[1]))] if D >= 2 else []
     trajectory = [P[0].copy()]
+
     stagnation_iter = None
     stagnation_count = 0
-    prev_best = x_star.copy()
-    prev_best_fit = x_star_fit  # On suit la fitness
     t = 0
 
-    while True:
+    while t < T:
         for i in range(N):
-            if not np.array_equal(x_star, P[i]):
-                for j in range(D):
-                    r1 = np.random.uniform(0, 1)
-                    r2 = np.random.uniform(0, 1)
-                    V[i, j] = (
-                        w * V[i, j]
-                        + c1 * r1 * (pbest[i, j] - P[i, j])
-                        + c2 * r2 * (x_star[j] - P[i, j])
-                    )
-                    V[i, j] = np.clip(V[i, j], -v_max, v_max)
-                    P[i, j] = np.clip(P[i, j] + V[i, j], lb, ub)
-        fitness = np.array([func(P[i]) for i in range(N)])
+            r1, r2 = np.random.rand(2)
+            V[i] = w * V[i] + c1 * r1 * (pbest[i] - P[i]) + c2 * r2 * (x_star - P[i])
+            V[i] = np.clip(V[i], -v_max, v_max)
+            P[i] = np.clip(P[i] + V[i], lb, ub)
 
-        # Mise à jour du gbest
-        current_best_idx = np.argmin(fitness)
-        if fitness[current_best_idx] < x_star_fit:
-            x_star_fit = fitness[current_best_idx]
-            x_star = P[current_best_idx].copy()
-            stagnation_count = 0  # On a trouvé mieux, on reset
-        else:
-            stagnation_count += 1  # Pas d'amélioration
+            # Calcul fitness
+            current_fit = func(P[i])
 
-        # Enregistrement de la première stagnation
-        if stagnation_count >= 30 and stagnation_iter is None:
+            # Update pbest
+            if current_fit < pbest_fit[i]:
+                pbest_fit[i] = current_fit
+                pbest[i] = P[i].copy()
+
+            # Update gbest
+            if current_fit < x_star_fit:
+                x_star_fit = current_fit
+                x_star = P[i].copy()
+                stagnation_count = 0  # Reset si amélioration
+            else:
+                stagnation_count += 1
+
+        # Détection stagnation (ex: après 30 itérations sans amélioration réelle)
+        if stagnation_count > (N * 20) and stagnation_iter is None:
             stagnation_iter = t
 
-        for i in range(N):
-            if x_star_fit > fitness[i]:
-                x_star = P[i].copy()
-                x_star_fit = fitness[i]
-            if pbest_fit[i] > fitness[i]:
-                pbest[i] = P[i].copy()
-                pbest_fit[i] = fitness[i]
         t += 1
 
-        if stagnation_count >= 50:  # Seuil d'arrêt anticipé
-            break
-
+        # Sauvegarde des données
         curve.append(float(x_star_fit))
-        avg_curve.append(float(np.mean(fitness)))
+        avg_curve.append(float(np.mean([func(p) for p in P])))
         all_positions.append(P.copy())
         if D >= 2:
             history.append((float(x_star[0]), float(x_star[1])))
         trajectory.append(P[0].copy())
 
-        if t >= T or stagnation_count >= 30:
+        # Sortie si stagnation trop longue
+        if stagnation_count > (N * 50):
             break
 
     return {
